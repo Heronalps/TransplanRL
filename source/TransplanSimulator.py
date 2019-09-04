@@ -1,10 +1,13 @@
 import random
+
+from Simulator import Simulator 
 from ActionSpace import ActionSpace
+
 
 # In the simplied version, two actions are in the space: [vote, collection]
 # Simulator will set up a reward policy for agent to learn by Q-learning
 
-class TransplanSimulator:
+class TransplanSimulator(Simulator):
     def __init__(self, num_votes=3, error_rate=0.1, num_candidate=3, cost_per_vote=0.01, 
                        slip=0.1):
         

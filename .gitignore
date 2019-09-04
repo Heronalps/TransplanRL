@@ -1,2 +1,5 @@
 __pycache__/
 test.*
+doc/
+data/
+**/.ipynb_checkpoints/
