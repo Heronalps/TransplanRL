@@ -13,4 +13,5 @@ class Agent(object):
     def __init__(self, constraints=None):
         self._constraints = constraints
         self._reward = 0
+        self._regret = 0
 
