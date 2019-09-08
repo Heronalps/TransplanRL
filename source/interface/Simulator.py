@@ -33,7 +33,7 @@ class Simulator(object):
             taken into account at this step.
             -----------
             Returns:
-                dimensions: [(history_action_size, dimension...)...] 
+                dimensions: [(history_action_size, dimension...),...] 
         """
         raise NotImplementedError()
 
