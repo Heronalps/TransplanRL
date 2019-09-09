@@ -64,10 +64,10 @@ class DQN():
         x = Dense(50, activation='relu')(x)
 
         if (self._action_as_input==False):
-            if (isinstance(self._n_actions, int)):
-                out = Dense(self._n_actions)(x)
+            if (isinstance(self._num_actions, int)):
+                out = Dense(self._num_actions)(x)
             else:
-                out = Dense(len(self._n_actions))(x)
+                out = Dense(len(self._num_actions))(x)
         else:
             out = Dense(1)(x)
 
