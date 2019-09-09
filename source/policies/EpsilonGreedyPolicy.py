@@ -1,4 +1,7 @@
-from ..interface import Policy
+import os, sys
+sys.path.insert(0, os.path.abspath(".."))
+
+from interface import Policy
 
 class EpsilonGreedyPolicy(Policy):
     """
@@ -23,3 +26,5 @@ class EpsilonGreedyPolicy(Policy):
     def epsilon(self):
         return self._epsilon
     
+if __name__ == "__main__":
+    pass

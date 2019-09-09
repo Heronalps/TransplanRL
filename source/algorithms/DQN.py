@@ -34,7 +34,7 @@ class DQN():
         outputs_conv = []
         inputs = []
 
-        for index, dim in enumerate(self._action_dimension):
+        for _ , dim in enumerate(self._action_dimension):
             # observation[i] is a vector. 
             # In TransplanRL, observation is (ResponseTime, WorkTime, Success Rate)
             if len(dim) == 2:

@@ -1,26 +1,30 @@
-import random
+import numpy as np
 
-from Simulator import Simulator 
-from ActionSpace import ActionSpace
+from interface import Simulator, ActionSpace
 
 
 # In the simplied version, two actions are in the space: [vote, collection]
 # Simulator will set up a reward policy for agent to learn by Q-learning
 
 class TransplanSimulator(Simulator):
-    def __init__(self, num_votes=3, error_rate=0.1, num_candidate=3, cost_per_vote=0.01, 
-                       slip=0.1):
+    def __init__(self, num_translation_string=100, 
+                       init_num_candidate=3, 
+                       min_majority = 5,
+                       sla = 3600 * 24, 
+                       budget = 100 * 100,
+                       tolerance_rate = 0,
+                       cost_range = [0.01, 0.1]):
         
-        # Set up parameters of MTurk 
-        self.num_votes = num_votes # The number of vote job on one translation issue
-        self.error_rate = error_rate # The percentage of issues that do not have a valid winning candidate(NOTA/Non-significant Vote)
-        self.num_candidate = num_candidate # The number of candidate for each issue
-        self.cost_per_vote = cost_per_vote # The monetary cost per vote 
+        # Set up parameters of MTurk
+        self._num_translation_string = num_translation_string # The number of vote job on one translation issue
+        self._init_num_candidates =  init_num_candidate
+        self._min_majority = min_majority 
+        self._num_worker = min_majority + (min_majority - 1) * (init_num_candidate - 1) # The number of workers to gain at least minimum majority
+        self._sla = sla
+        self._budget = budget
+        self._tolerance_rate = tolerance_rate
+        self._cost_range = cost_range
     
-        # Set up config
-        self.slip = slip # The probability of flipping a action
-        self.state = 0
-        self.action = ActionSpace(1) # 1: Vote; 2: Collection
     
 
     def take_action(self, action):
