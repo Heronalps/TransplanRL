@@ -74,3 +74,23 @@ class Simulator(object):
                 isTerminated: bool
         """
         raise NotImplementedError()
+
+    def observationType(self, subject):
+        """Gets the most inner type (np.uint8, np.float32, ...) of [subject].
+
+        Parameters
+        -----------
+        subject : int
+            The subject
+        """
+
+        return np.float32
+
+    def summarizePerformance(self, test_data_set, *args, **kwargs):
+        pass
+
+    def end(self):
+        """
+            Optional hook called at the end of all epochs
+        """
+        pass

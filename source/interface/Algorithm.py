@@ -17,7 +17,7 @@ class Algorithm(object):
         self._lr = 0.001
         self._df = 0.9
         self._batch_size = batch_size
-        self._action_dimensions = simulator.get_action_dimensions()
+        self._action_dimensions = simulator.get_action_dimension()
         self._num_actions = simulator.get_num_actions()
 
     def train(self, states, actions, rewards, nextStates, terminals):

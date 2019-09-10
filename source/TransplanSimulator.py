@@ -3,7 +3,7 @@ import pandas as pd
 import math 
 
 from interface import Simulator, ActionSpace
-from helper.helpers import synthesize
+from helper.helpers import synthesize, parse_action
 
 
 # In the simplied version, two actions are in the space: [vote, collection]
@@ -12,27 +12,34 @@ from helper.helpers import synthesize
 class TransplanSimulator(Simulator):
     def __init__(self, rng, 
                        num_translation_string=100, 
-                       init_num_candidate=3, 
+                       init_num_candidates=3, 
                        min_majority = 5,
                        sla = 3600 * 24, # 24 hours in seconds
                        budget = 100 * 100, # 100 dollars in cents
-                       tolerance_rate = 0,
+                       tolerance_rate = 1e-3,
                        cost_range = list(range(1, 11))):
         
         # Set up parameters of MTurk
+        self.origin_num_translation_string = num_translation_string # The number of vote job on one translation issue
         self.num_translation_string = num_translation_string # The number of vote job on one translation issue
-        self.num_candidates =  init_num_candidate
+        
+        self.num_candidates = init_num_candidates
         self.min_majority = min_majority 
-        self.num_worker = min_majority + (min_majority - 1) * (init_num_candidate - 1) # The number of workers to gain at least minimum majority
+        self.num_worker = min_majority + (min_majority - 1) * (init_num_candidates - 1) # The number of workers to gain at least minimum majority
+        
+        self.origin_sla = sla
         self.sla = sla
+        self.origin_budget = budget
         self.budget = budget
         self.tolerance_rate = tolerance_rate
         self.cost_range = cost_range
+        self.cumulative_success_rate = 0
+        self.random_state = rng
 
         # Define the observation of Simulator
-        # At each tiem step, the observation is made up of three elements: Response Time, Work Time, Success Rate
-        self.last_punctual_observation = [0, 0, 0]
-        self.random_state = rng
+        # At each time step, the observation is [cumulative success rate, action]
+        self.last_punctual_observation = [0, 0]
+        
 
         # Fixed configurations from MTurk experiment
 
@@ -56,7 +63,18 @@ class TransplanSimulator(Simulator):
         self.voting_rate_vector = [0.8, 1] 
 
     def reset(self, mode):
-        pass
+        if mode == -1:
+            self.num_translation_string = self.origin_num_translation_string 
+        else:
+            self.num_translation_string = 10
+
+        self.sla = self.origin_sla
+        self.budget = self.origin_budget
+        self.num_candidates = 3
+        self.cumulative_success_rate = 0
+        self.episode_counter = 0
+
+        return [6*[0], 0]
 
     def act(self, action):
         """
@@ -75,20 +93,20 @@ class TransplanSimulator(Simulator):
             Returns:
             --------
             reward: float
-            isTerminal: bool
+            
         """
-        # All jobs are finished
-        if self.num_translation_string <= 0:
-            return 0, True
-        
-        # No SLA or budget left
-        if self.sla <= 0 or self.budget <= 0:
-            return 0, True
 
-        constituency = action[0]
-        candidate = action[1]
-        voting = action[2]
-        cost = action[3]
+        constituency, candidate, voting, cost = parse_action(action)
+
+        # Update num of candidate
+        if candidate == 0:
+            if self.num_candidates <= 0:
+                candidate = 1
+            else:
+                self.num_candidates -= 1
+
+        if candidate == 2:
+            self.num_candidates += 1 
 
         response_time_sample = synthesize(dist="Gaussian", 
                                           sample_size=self.num_translation_string,
@@ -116,16 +134,9 @@ class TransplanSimulator(Simulator):
                                self.candidates_rate_vector[candidate] * \
                                self.voting_rate_vector[voting]
         
-
-        df = pd.DataFrame(data={
-                            "response_time": response_time_sample,
-                            "work_time": work_time_sample,
-                            "success_rate": pd.Series([success_rate] * self.num_translation_string)
-                            })
+        df = pd.DataFrame(data={"response_time": response_time_sample, "work_time": work_time_sample})
 
         # import pdb; pdb.set_trace();
-        # Update last punctual obseration
-        self.last_punctual_observation = df
         
         min_response_time = self.min_response_time
         work_time_lower_bound = self.work_time_lower_bound
@@ -156,22 +167,31 @@ class TransplanSimulator(Simulator):
 
         # Deduct successful translation from work order
         self.num_translation_string -= math.ceil(self.num_translation_string * success_rate)
+        
+        # Increase cumulative success rate
+        self.cumulative_success_rate += (1 - self.cumulative_success_rate) * success_rate
 
-        if self.num_translation_string <= 0:
-            return reward, True
-        else:
-            return reward, False
+        # Update episode_counter
+        self.episode_counter += 1
+
+        # Update last punctual observation
+        self.last_punctual_observation[0] = self.cumulative_success_rate
+        self.last_punctual_observation[1] = action
+
+        return reward
 
     def get_action_dimension(self):
-        return [(1, 3)]
+        return [(6,), (1,)]
 
     def get_num_actions(self):
-        return len(self.constituency_rate_vector) * \
-            len(self.candidates_rate_vector) * \
-            len(self.voting_rate_vector)
+        return 120
 
     def inTerminalState(self):
-        return self.num_translation_string <= 0
+        isTerminated = (1 - self.cumulative_success_rate) <= self.tolerance_rate or \
+                       self.num_translation_string <= 0 or \
+                       self.sla <= 0 or \
+                       self.budget <= 0
+        return isTerminated
 
     def observe(self):
         return self.last_punctual_observation
@@ -179,10 +199,12 @@ class TransplanSimulator(Simulator):
     def get_constraints(self):
         return [self.sla, self.budget]
 
+
 if __name__ == "__main__":
     rng = np.random.RandomState(123456)
     mySimulator = TransplanSimulator(rng)
 
     print (mySimulator.act([1, 1, 1, 9]))
+    print (mySimulator.get_constraints())
     print (mySimulator.observe())
     

@@ -5,7 +5,7 @@
 import numpy as np
 from keras.models import Model
 from keras.layers import Input, Layer, Dense, Flatten, concatenate, Activation, Conv2D,\
-    MaxPooling2D, Reshape, Permute
+                         MaxPooling2D, Reshape, Permute
 
 class DQN():
     """
@@ -51,6 +51,23 @@ class DQN():
                     inputs.append(input)
                     out = Flatten()(input)
 
+            # - observation[i] is a SCALAR -
+            elif len(dim) == 1:
+                if dim[0] > 3:
+                    # this returns a tensor
+                    input = Input(shape=(dim[0],))
+                    inputs.append(input)
+                    reshaped=Reshape((1,dim[0],1), input_shape=(dim[0],))(input)  
+                    x = Conv2D(8, (1,2), activation='relu', padding='valid')(reshaped)  #Conv on the history
+                    x = Conv2D(8, (1,2), activation='relu', padding='valid')(x)         #Conv on the history
+                    
+                    out = Flatten()(x)
+                                        
+                else:
+                    input = Input(shape=(dim[0],))
+                    inputs.append(input)
+                    out=input
+
             outputs_conv.append(out)
         
         if len(outputs_conv)>1:
@@ -75,7 +92,9 @@ class DQN():
         layers = model.layers
 
         # Grab all the parameters
-        params = [ param for layer in layers for param in layer.traninable_weights ]
+        params = [ param 
+                    for layer in layers 
+                    for param in layer.trainable_weights ]
 
         return model, params
 

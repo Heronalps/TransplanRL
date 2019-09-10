@@ -22,35 +22,19 @@ class NeuralAgent(Agent):
     """The NeuralAgent class wraps a learning algorithm (such as a deep Q-network) for training and testing in a given environment.
     
     Attach controllers to it in order to conduct an experiment (when to train the agent, when to test,...).
-    
-    Parameters
-    -----------
-    environment : object from class Environment
-        The environment in which the agent interacts
-    learning_algo : object from class LearningAlgo
-        The learning algorithm associated to the agent
-    replay_memory_size : int
-        Size of the replay memory. Default : 1000000
-    replay_start_size : int
-        Number of observations (=number of time steps taken) in the replay memory before starting learning. 
-        Default: minimum possible according to environment.inputDimensions().
-    batch_size : int
-        Number of tuples taken into account for each iteration of gradient descent. Default : 32
-    random_state : numpy random number generator
-        Default : random seed.
-    exp_priority : float
-        The exponent that determines how much prioritization is used, default is 0 (uniform priority).
-        One may check out Schaul et al. (2016) - Prioritized Experience Replay.
-    train_policy : object from class Policy
-        Policy followed when in training mode (mode -1)
-    test_policy : object from class Policy
-        Policy followed when in other modes than training (validation and test modes)
-    only_full_history : boolean
-        Whether we wish to train the neural network only on full histories or we wish to fill with zeroes the 
-        observations before the beginning of the episode
     """
 
-    def __init__(self, environment, learning_algo, replay_memory_size=1000000, replay_start_size=None, batch_size=32, random_state=np.random.RandomState(), exp_priority=0, train_policy=None, test_policy=None, only_full_history=True):
+    def __init__(self, environment, 
+                       learning_algo, 
+                       replay_memory_size=1000000, 
+                       replay_start_size=None, 
+                       batch_size=32, 
+                       random_state=np.random.RandomState(), 
+                       exp_priority=0, 
+                       train_policy=None, 
+                       test_policy=None, 
+                       only_full_history=True):
+
         inputDims = environment.get_action_dimension()
         
         if replay_start_size == None:
@@ -80,11 +64,11 @@ class NeuralAgent(Agent):
         for i in range(len(inputDims)):
             self._state.append(np.zeros(inputDims[i], dtype=float))
         if (train_policy==None):
-            self._train_policy = EpsilonGreedyPolicy(learning_algo, environment.nActions(), random_state, 0.1)
+            self._train_policy = EpsilonGreedyPolicy(learning_algo, environment.get_num_actions(), random_state, 0.1)
         else:
             self._train_policy = train_policy
         if (test_policy==None):
-            self._test_policy = EpsilonGreedyPolicy(learning_algo, environment.nActions(), random_state, 0.)
+            self._test_policy = EpsilonGreedyPolicy(learning_algo, environment.get_num_actions(), random_state, 0.)
         else:
             self._test_policy = test_policy
         self.gathering_data=True    # Whether the agent is gathering data or not
@@ -297,7 +281,7 @@ class NeuralAgent(Agent):
         """
         self._in_episode = True
         initState = self._environment.reset(self._mode)
-        inputDims = self._environment.inputDimensions()
+        inputDims = self._environment.get_action_dimension()
         for i in range(len(inputDims)):
             if inputDims[i][0] > 1:
                 self._state[i][1:] = initState[i][1:]
@@ -377,7 +361,7 @@ class NeuralAgent(Agent):
                 action, V = self._train_policy.action(self._state, mode=None, dataset=self._dataset)     #is self._state the only way to store/pass the state?
             else:
                 # Still gathering initial data: choose dummy action
-                action, V = self._train_policy.randomAction()
+                action, V = self._train_policy.random_action()
                 
         for c in self._controllers: c.onActionChosen(self, action)
         return action, V
@@ -418,12 +402,12 @@ class DataSet(object):
             The replay memory maximum size. Default : 1000000
         """
 
-        self._batch_dimensions = env.inputDimensions()
+        self._batch_dimensions = env.get_action_dimension()
         self._max_history_size = np.max([self._batch_dimensions[i][0] for i in range (len(self._batch_dimensions))])
         self._size = max_size
         self._use_priority = use_priority
         self._only_full_history = only_full_history
-        if ( isinstance(env.nActions(),int) ):
+        if ( isinstance(env.get_num_actions(),int) ):
             self._actions      = CircularBuffer(max_size, dtype="int8")
         else:
             self._actions      = CircularBuffer(max_size, dtype='object')
