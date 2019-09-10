@@ -3,7 +3,6 @@ Algorithm interface is the base class of RL learning algorithms
 '''
 
 import numpy as np
-from Simulator import Simulator 
 
 class Algorithm(object):
 
@@ -62,4 +61,3 @@ class Algorithm(object):
             Get the discount factor
         """
         return self._df
-        

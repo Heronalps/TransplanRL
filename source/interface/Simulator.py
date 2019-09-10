@@ -20,7 +20,7 @@ class Simulator(object):
             -----------
             Parameters:
             -----------
-                action: int
+                action: vector
             -----------      
             Returns:
                 isSuccess: bool
