@@ -16,10 +16,10 @@ def run():
     agent.attach(bc.VerboseController())
     agent.attach(bc.TrainerController())
     agent.attach(bc.InterleavedTestEpochController(
-        epoch_length=5,
+        epoch_length=10,
         controllers_to_disable=[0, 1]
     ))
-    agent.run(n_epochs=10, epoch_length=10)
+    agent.run(n_epochs=100, epoch_length=100)
 
 
 if __name__ == "__main__":

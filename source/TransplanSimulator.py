@@ -14,8 +14,8 @@ class TransplanSimulator(Simulator):
                        num_translation_string=100, 
                        init_num_candidates=3, 
                        min_majority = 5,
-                       sla = 3600 * 24, # 24 hours in seconds
-                       budget = 100 * 100, # 100 dollars in cents
+                       sla = 3600 * 2, # 2 hours in seconds
+                       budget = 100 * 7, # 7 dollars in cents
                        tolerance_rate = 1e-3,
                        cost_range = list(range(1, 11))):
         
@@ -66,7 +66,7 @@ class TransplanSimulator(Simulator):
         if mode == -1:
             self.num_translation_string = self.origin_num_translation_string 
         else:
-            self.num_translation_string = 10
+            self.num_translation_string = 100
 
         self.sla = self.origin_sla
         self.budget = self.origin_budget
@@ -74,7 +74,7 @@ class TransplanSimulator(Simulator):
         self.cumulative_success_rate = 0
         self.episode_counter = 0
 
-        return [6*[0], 0]
+        return [1*[0], 0]
 
     def act(self, action):
         """
@@ -110,7 +110,8 @@ class TransplanSimulator(Simulator):
 
         response_time_sample = synthesize(dist="Gaussian", 
                                           sample_size=self.num_translation_string,
-                                          parameters={"mean": 1 / self.cost_range[cost], "std": self.std})
+                                          parameters={"mean": 1 / self.cost_range[cost], "std": self.std},
+                                          random_generator=self.random_state)
         
         # For different constituency, response time increase 20%
         if constituency == 1:
@@ -120,20 +121,24 @@ class TransplanSimulator(Simulator):
         # For work time, lower bound is set at 3 seconds * num_candidates
         work_time_sample = synthesize(dist="Pareto",
                                       sample_size=self.num_translation_string,
-                                      parameters={"shape": self.shape, "scale": self.work_time_lower_bound})
+                                      parameters={"shape": self.shape, "scale": self.work_time_lower_bound},
+                                      random_generator=self.random_state)
         
         success_rate = 0
         if self.episode_counter == 0:
             success_rate = self.random_state.uniform(0.8, 1)
         else:
             # Same constituency + Same candidate => success rate = 0
+            # Assign a large negative number as a punishment
             if constituency == 1 and candidate == 1:
-                success_rate = 0
+                return -9999
             else:
                 success_rate = self.constituency_rate_vector[constituency] * \
                                self.candidates_rate_vector[candidate] * \
                                self.voting_rate_vector[voting]
         
+        print ("success_rate : ", success_rate)
+
         df = pd.DataFrame(data={"response_time": response_time_sample, "work_time": work_time_sample})
 
         # import pdb; pdb.set_trace();
@@ -142,7 +147,7 @@ class TransplanSimulator(Simulator):
         work_time_lower_bound = self.work_time_lower_bound
         work_time_upper_bound = self.work_time_upper_bound
 
-        # Cumulative Positive Rewards
+        # Cumulative Rewards - Quadratic function makes the rewards mostly likely negative 
         df['reward'] = df.apply(lambda row: success_rate * 
                                             ((1 / max(row['response_time'], min_response_time)) - 
                                             (row['work_time'] - work_time_lower_bound) * 
@@ -158,8 +163,9 @@ class TransplanSimulator(Simulator):
         money = self.cost_range[cost] * self.num_translation_string
 
         # In case of additional translation
-        time += self.translation_time
-        money += self.translation_cost
+        if candidate == 2:
+            time += self.translation_time
+            money += self.translation_cost
 
         # Deduct from SLA and Budget
         self.sla -= time
@@ -170,6 +176,8 @@ class TransplanSimulator(Simulator):
         
         # Increase cumulative success rate
         self.cumulative_success_rate += (1 - self.cumulative_success_rate) * success_rate
+        print ("Cumulative Success Rate : ", self.cumulative_success_rate)
+        print ("In terminated state : ", self.inTerminalState())
 
         # Update episode_counter
         self.episode_counter += 1
@@ -181,7 +189,7 @@ class TransplanSimulator(Simulator):
         return reward
 
     def get_action_dimension(self):
-        return [(6,), (1,)]
+        return [(1,), (1,)]
 
     def get_num_actions(self):
         return 120
@@ -199,12 +207,26 @@ class TransplanSimulator(Simulator):
     def get_constraints(self):
         return [self.sla, self.budget]
 
+    def get_episode_counter(self):
+        return self.episode_counter
+
+    def summarizePerformance(self, test_data_set, *args, **kwargs):
+        print ("Test Episode action sequence")
+        print ("Observations : ", test_data_set.observations())
+        print ("Actions : ", test_data_set.actions())
+        print ("Rewards : ", test_data_set.rewards())
+        print ("Terminals : ", test_data_set.terminals())
+        print ("Contraints : ", self.get_constraints())
+        print ("Current Observation : ", self.observe())
+        print ("Episode Counter : ", self.get_episode_counter())
+        print ("==========================")
+
 
 if __name__ == "__main__":
-    rng = np.random.RandomState(123456)
+    rng = np.random.RandomState(1)
     mySimulator = TransplanSimulator(rng)
 
-    print (mySimulator.act([1, 1, 1, 9]))
+    print (mySimulator.act(110))
     print (mySimulator.get_constraints())
     print (mySimulator.observe())
     
